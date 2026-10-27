@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>팀 실시간 일일 체크리스트 & 월별 캘린더</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts: Inter & Noto Sans KR -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans KR', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              200: '#bae0fd',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    .task-item {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="bg-brand-500 text-white p-2 rounded-xl shadow-md shadow-brand-500/20">
+          <i data-lucide="users" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl font-bold text-slate-900 leading-tight">팀 공유 플래너</h1>
+            <span id="syncBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              실시간 동기화 중
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 hidden sm:block">팀원 전체가 실시간으로 공유하는 캘린더와 일일 체크리스트</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="todayBtn" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-lg transition-colors">
+          <i data-lucide="calendar-day" class="w-4 h-4"></i>
+          오늘로 이동
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-start">
+      
+      <!-- LEFT COLUMN: Calendar Panel -->
+      <section class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        <!-- Calendar Header Controls -->
+        <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div class="flex items-center gap-2">
+            <h2 id="calendarTitle" class="text-lg font-bold text-slate-800">월 선택</h2>
+          </div>
+          <div class="flex items-center gap-1">
+            <button id="prevMonthBtn" class="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded-lg transition-colors" title="이전 달">
+              <i data-lucide="chevron-left" class="w-5 h-5"></i>
+            </button>
+            <button id="nextMonthBtn" class="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded-lg transition-colors" title="다음 달">
+              <i data-lucide="chevron-right" class="w-5 h-5"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Days of Week Header -->
+        <div class="grid grid-cols-7 text-center border-b border-slate-100 py-2.5 bg-slate-50/30 text-xs font-semibold text-slate-500">
+          <span class="text-rose-500">일</span>
+          <span>월</span>
+          <span>화</span>
+          <span>수</span>
+          <span>목</span>
+          <span>금</span>
+          <span class="text-blue-500">토</span>
+        </div>
+
+        <!-- Calendar Days Grid -->
+        <div id="calendarGrid" class="grid grid-cols-7 p-2 gap-1 sm:gap-1.5 flex-1 min-h-[320px]">
+          <!-- Dynamic Calendar Days -->
+        </div>
+
+        <!-- Calendar Footer / Legend -->
+        <div class="px-4 py-3 bg-slate-50/50 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-brand-500 inline-block"></span>
+              할 일 있음
+            </span>
+            <span class="flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+              모두 완료
+            </span>
+          </div>
+          <span class="text-slate-400">날짜 클릭 시 해당 날짜 선택</span>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: Daily Checklist Panel -->
+      <section class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col min-h-[500px]">
+        <!-- Daily Header -->
+        <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
+          <div>
+            <div class="flex items-center gap-2">
+              <span id="selectedDateBadge" class="text-xs font-bold px-2.5 py-1 bg-brand-100 text-brand-700 rounded-md">TODAY</span>
+              <h2 id="selectedDateText" class="text-xl font-bold text-slate-900">선택된 날짜</h2>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">팀원 누구나 텍스트를 클릭하여 실시간 수정할 수 있습니다.</p>
+          </div>
+
+          <!-- Completion Progress Indicator -->
+          <div class="flex items-center gap-3 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs">
+            <div class="text-right">
+              <div class="text-xs font-semibold text-slate-500">달성도</div>
+              <div id="progressPercent" class="text-sm font-bold text-slate-800">0%</div>
+            </div>
+            <div class="w-12 bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200">
+              <div id="progressBar" class="bg-brand-500 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add New Task Input Bar -->
+        <div class="p-4 border-b border-slate-100 bg-white">
+          <form id="addTaskForm" class="flex items-center gap-2">
+            <div class="relative flex-1">
+              <i data-lucide="plus-circle" class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+              <input type="text" id="newTaskInput" placeholder="공유할 할 일을 입력하세요... (Enter 키로 추가)" class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-500 focus:bg-white transition-all text-slate-800 placeholder-slate-400">
+            </div>
+            <button type="submit" class="px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shrink-0 flex items-center gap-1">
+              <span>추가</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Checklist Task Items List -->
+        <div class="p-4 sm:p-5 flex-1 overflow-y-auto max-h-[450px]" id="taskListContainer">
+          <ul id="taskList" class="space-y-2.5">
+            <!-- Dynamic task items injected via JS -->
+          </ul>
+
+          <!-- Empty State Container -->
+          <div id="emptyState" class="hidden flex-col items-center justify-center py-12 text-center text-slate-400">
+            <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+              <i data-lucide="clipboard-list" class="w-8 h-8 text-slate-300"></i>
+            </div>
+            <p class="text-sm font-medium text-slate-500">이 날짜에 등록된 팀 할 일이 없습니다.</p>
+            <p class="text-xs text-slate-400 mt-1">상단 입력창에 새로 추가해보세요!</p>
+          </div>
+        </div>
+
+        <!-- Daily Tasks Summary Footer -->
+        <div class="p-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+          <span id="taskStats">총 0개 항목 중 0개 완료</span>
+          <button id="clearCompletedBtn" class="text-slate-400 hover:text-rose-500 transition-colors hidden">
+            완료 항목 전체 삭제
+          </button>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Toast Notification Container -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs font-medium px-4 py-2.5 rounded-xl shadow-lg transform translate-y-10 opacity-0 transition-all duration-300 pointer-events-none z-50 flex items-center gap-2">
+    <i data-lucide="info" class="w-4 h-4 text-brand-500"></i>
+    <span id="toastMessage">알림</span>
+  </div>
+
+  <!-- Firebase Integration -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Global Environment Config
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'shared-team-planner';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' 
+      ? JSON.parse(__firebase_config) 
+      : {
+          apiKey: "demo-key",
+          authDomain: "demo.firebaseapp.com",
+          projectId: "demo-project",
+          storageBucket: "demo.appspot.com",
+          messagingSenderId: "123456789",
+          appId: "1:123456789:web:demo"
+        };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    let currentUser = null;
+    let currentDate = new Date();
+    let selectedDateStr = formatDateKey(new Date());
+    let tasksData = {}; // Format: { "YYYY-MM-DD": [ { id, text, completed } ] }
+    let unsubscribeFirestore = null;
+
+    // Helper Functions
+    function formatDateKey(dateObj) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function parseDateKey(keyStr) {
+      const parts = keyStr.split('-');
+      return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    }
+
+    function getDayOfWeekKorean(dayIndex) {
+      const days = ['일', '월', '화', '수', '목', '금', '토'];
+      return days[dayIndex];
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMessage');
+      toastMsg.textContent = msg;
+      toast.classList.remove('translate-y-10', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-10', 'opacity-0');
+      }, 2000);
+    }
+
+    // Authenticate and Setup Realtime Firestore Listener
+    async function initAuthAndFirestore() {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) {
+        console.error("Authentication error:", err);
+      }
+
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          currentUser = user;
+          setupRealtimeTasksListener();
+        }
+      });
+    }
+
+    // Firestore Path for Public Team Shared Tasks
+    // Path Rule: /artifacts/{appId}/public/data/tasks
+    function setupRealtimeTasksListener() {
+      if (!currentUser) return;
+
+      const tasksCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
+
+      if (unsubscribeFirestore) unsubscribeFirestore();
+
+      unsubscribeFirestore = onSnapshot(tasksCollectionRef, (snapshot) => {
+        tasksData = {};
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          tasksData[docSnap.id] = data.items || [];
+        });
+
+        // Initialize default demo task for today if database is completely empty
+        const todayKey = formatDateKey(new Date());
+        if (Object.keys(tasksData).length === 0) {
+          const initialTasks = [
+            { id: '1', text: '팀원들과 프로젝트 일정 공유하기', completed: true },
+            { id: '2', text: '텍스트를 클릭하여 할 일 내용 수정해보기', completed: false },
+            { id: '3', text: '네모 버튼을 클릭하여 완료 상태 동기화하기', completed: false }
+          ];
+          saveDateTasksToFirestore(todayKey, initialTasks);
+        } else {
+          renderCalendar();
+          renderTaskList();
+        }
+      }, (error) => {
+        console.error("Firestore snapshot error:", error);
+      });
+    }
+
+    // Write updated date tasks to Firestore
+    async function saveDateTasksToFirestore(dateKey, items) {
+      if (!currentUser) return;
+      try {
+        const dateDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', dateKey);
+        if (items.length === 0) {
+          await deleteDoc(dateDocRef);
+        } else {
+          await setDoc(dateDocRef, { items: items, updatedAt: new Date().toISOString() });
+        }
+      } catch (err) {
+        console.error("Failed to save tasks:", err);
+      }
+    }
+
+    // Render Calendar View
+    function renderCalendar() {
+      const calendarGrid = document.getElementById('calendarGrid');
+      const calendarTitle = document.getElementById('calendarTitle');
+
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+
+      calendarTitle.textContent = `${year}년 ${month + 1}월`;
+      calendarGrid.innerHTML = '';
+
+      const firstDayOfMonth = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+      // Prev Month Pad
+      for (let i = firstDayOfMonth - 1; i >= 0; i--) {
+        const dayNum = daysInPrevMonth - i;
+        const prevMonthDate = new Date(year, month - 1, dayNum);
+        const dateKey = formatDateKey(prevMonthDate);
+        calendarGrid.appendChild(createCalendarCell(dayNum, dateKey, true, prevMonthDate.getDay()));
+      }
+
+      // Current Month Days
+      for (let day = 1; day <= daysInMonth; day++) {
+        const thisDate = new Date(year, month, day);
+        const dateKey = formatDateKey(thisDate);
+        calendarGrid.appendChild(createCalendarCell(day, dateKey, false, thisDate.getDay()));
+      }
+
+      // Next Month Pad
+      const totalCells = calendarGrid.children.length;
+      const remainingCells = totalCells > 35 ? 42 - totalCells : 35 - totalCells;
+      for (let i = 1; i <= remainingCells; i++) {
+        const nextMonthDate = new Date(year, month + 1, i);
+        const dateKey = formatDateKey(nextMonthDate);
+        calendarGrid.appendChild(createCalendarCell(i, dateKey, true, nextMonthDate.getDay()));
+      }
+
+      lucide.createIcons();
+    }
+
+    function createCalendarCell(dayNum, dateKey, isOtherMonth, dayOfWeek) {
+      const cell = document.createElement('button');
+      cell.className = `group relative h-12 sm:h-14 p-1 rounded-xl flex flex-col items-center justify-between transition-all border border-transparent`;
+
+      const todayKey = formatDateKey(new Date());
+      const isToday = dateKey === todayKey;
+      const isSelected = dateKey === selectedDateStr;
+
+      let dayTextColor = isOtherMonth ? 'text-slate-300' : 'text-slate-700';
+      if (!isOtherMonth) {
+        if (dayOfWeek === 0) dayTextColor = 'text-rose-500 font-medium';
+        if (dayOfWeek === 6) dayTextColor = 'text-blue-500 font-medium';
+      }
+
+      if (isSelected) {
+        cell.classList.add('bg-brand-500', 'text-white', 'shadow-md', 'shadow-brand-500/20');
+        dayTextColor = 'text-white font-bold';
+      } else if (isToday) {
+        cell.classList.add('bg-brand-50', 'border-brand-200', 'hover:bg-brand-100');
+      } else {
+        cell.classList.add('hover:bg-slate-100');
+      }
+
+      const numSpan = document.createElement('span');
+      numSpan.className = `text-xs sm:text-sm ${dayTextColor} w-6 h-6 flex items-center justify-center rounded-full ${isToday && !isSelected ? 'bg-brand-500 text-white font-bold' : ''}`;
+      numSpan.textContent = dayNum;
+
+      cell.appendChild(numSpan);
+
+      // Indicators for shared tasks
+      const tasks = tasksData[dateKey] || [];
+      const dotContainer = document.createElement('div');
+      dotContainer.className = 'flex items-center gap-1 h-2 mb-0.5';
+
+      if (tasks.length > 0) {
+        const allCompleted = tasks.every(t => t.completed);
+        const dot = document.createElement('span');
+        
+        if (isSelected) {
+          dot.className = 'w-1.5 h-1.5 rounded-full bg-white';
+        } else if (allCompleted) {
+          dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
+        } else {
+          dot.className = 'w-1.5 h-1.5 rounded-full bg-brand-500';
+        }
+        dotContainer.appendChild(dot);
+      }
+
+      cell.appendChild(dotContainer);
+
+      cell.onclick = () => {
+        selectedDateStr = dateKey;
+        const selDateObj = parseDateKey(dateKey);
+        currentDate = new Date(selDateObj.getFullYear(), selDateObj.getMonth(), 1);
+        
+        renderCalendar();
+        renderTaskList();
+      };
+
+      return cell;
+    }
+
+    // Render Daily Checklist
+    function renderTaskList() {
+      const taskList = document.getElementById('taskList');
+      const selectedDateText = document.getElementById('selectedDateText');
+      const selectedDateBadge = document.getElementById('selectedDateBadge');
+      const emptyState = document.getElementById('emptyState');
+      const progressBar = document.getElementById('progressBar');
+      const progressPercent = document.getElementById('progressPercent');
+      const taskStats = document.getElementById('taskStats');
+      const clearCompletedBtn = document.getElementById('clearCompletedBtn');
+
+      const dateObj = parseDateKey(selectedDateStr);
+      const todayKey = formatDateKey(new Date());
+
+      const year = dateObj.getFullYear();
+      const month = dateObj.getMonth() + 1;
+      const date = dateObj.getDate();
+      const dayKo = getDayOfWeekKorean(dateObj.getDay());
+
+      selectedDateText.textContent = `${year}년 ${month}월 ${date}일 (${dayKo})`;
+
+      if (selectedDateStr === todayKey) {
+        selectedDateBadge.textContent = 'TODAY';
+        selectedDateBadge.className = 'text-xs font-bold px-2.5 py-1 bg-brand-100 text-brand-700 rounded-md';
+        selectedDateBadge.classList.remove('hidden');
+      } else {
+        selectedDateBadge.classList.add('hidden');
+      }
+
+      const tasks = tasksData[selectedDateStr] || [];
+      taskList.innerHTML = '';
+
+      if (tasks.length === 0) {
+        emptyState.classList.remove('hidden');
+        emptyState.classList.add('flex');
+        progressBar.style.width = '0%';
+        progressPercent.textContent = '0%';
+        taskStats.textContent = '등록된 할 일이 없습니다.';
+        clearCompletedBtn.classList.add('hidden');
+        return;
+      } else {
+        emptyState.classList.add('hidden');
+        emptyState.classList.remove('flex');
+      }
+
+      const completedCount = tasks.filter(t => t.completed).length;
+      const totalCount = tasks.length;
+      const percentage = Math.round((completedCount / totalCount) * 100);
+
+      progressBar.style.width = `${percentage}%`;
+      progressPercent.textContent = `${percentage}%`;
+      taskStats.textContent = `총 ${totalCount}개 항목 중 ${completedCount}개 완료`;
+
+      if (completedCount > 0) {
+        clearCompletedBtn.classList.remove('hidden');
+      } else {
+        clearCompletedBtn.classList.add('hidden');
+      }
+
+      tasks.forEach((task) => {
+        const li = document.createElement('li');
+        li.className = `task-item group flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200/80 transition-all ${
+          task.completed ? 'bg-slate-50/50 opacity-75' : ''
+        }`;
+
+        const leftBox = document.createElement('div');
+        leftBox.className = 'flex items-center gap-3 flex-1 min-w-0 mr-2';
+
+        // Checkbox Toggle Button
+        const checkBtn = document.createElement('button');
+        checkBtn.type = 'button';
+        checkBtn.className = `w-6 h-6 rounded-lg border flex items-center justify-center transition-all shrink-0 ${
+          task.completed
+            ? 'bg-emerald-500 border-emerald-500 text-white shadow-xs'
+            : 'border-slate-300 bg-white hover:border-brand-500 text-transparent'
+        }`;
+        checkBtn.innerHTML = `<i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>`;
+        checkBtn.onclick = () => toggleTaskComplete(task.id);
+
+        // Clickable / Editable Text Container
+        const textWrapper = document.createElement('div');
+        textWrapper.className = 'flex-1 min-w-0 cursor-pointer';
+
+        const textSpan = document.createElement('span');
+        textSpan.className = `text-sm text-slate-800 break-all inline-block w-full py-0.5 rounded px-1 transition-colors hover:bg-white/80 ${
+          task.completed ? 'line-through text-slate-400 font-normal' : 'font-medium'
+        }`;
+        textSpan.textContent = task.text;
+        textSpan.title = "클릭하여 실시간 내용 수정";
+
+        // Click to Inline-Edit Task Text
+        textSpan.onclick = () => {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.value = task.text;
+          input.className = 'w-full text-sm font-medium text-slate-800 bg-white px-2 py-1 rounded-lg border-2 border-brand-500 focus:outline-none shadow-sm';
+          
+          textWrapper.innerHTML = '';
+          textWrapper.appendChild(input);
+          input.focus();
+
+          const saveEdit = () => {
+            const newText = input.value.trim();
+            if (newText && newText !== task.text) {
+              updateTaskText(task.id, newText);
+            } else {
+              renderTaskList();
+            }
+          };
+
+          input.onblur = saveEdit;
+          input.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              saveEdit();
+            } else if (e.key === 'Escape') {
+              renderTaskList();
+            }
+          };
+        };
+
+        textWrapper.appendChild(textSpan);
+        leftBox.appendChild(checkBtn);
+        leftBox.appendChild(textWrapper);
+
+        // Delete Task Button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all shrink-0';
+        deleteBtn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
+        deleteBtn.title = "삭제";
+        deleteBtn.onclick = () => deleteTask(task.id);
+
+        li.appendChild(leftBox);
+        li.appendChild(deleteBtn);
+
+        taskList.appendChild(li);
+      });
+
+      lucide.createIcons();
+    }
+
+    // Realtime Data Action Wrappers
+    function addTask(text) {
+      const currentList = tasksData[selectedDateStr] || [];
+      const newTask = {
+        id: Date.now().toString(),
+        text: text,
+        completed: false
+      };
+      const updatedList = [...currentList, newTask];
+      saveDateTasksToFirestore(selectedDateStr, updatedList);
+      showToast('팀 할 일이 추가되었습니다.');
+    }
+
+    function toggleTaskComplete(id) {
+      const currentList = tasksData[selectedDateStr] || [];
+      const updatedList = currentList.map(task => {
+        if (task.id === id) {
+          return { ...task, completed: !task.completed };
+        }
+        return task;
+      });
+      saveDateTasksToFirestore(selectedDateStr, updatedList);
+    }
+
+    function updateTaskText(id, newText) {
+      const currentList = tasksData[selectedDateStr] || [];
+      const updatedList = currentList.map(task => {
+        if (task.id === id) {
+          return { ...task, text: newText };
+        }
+        return task;
+      });
+      saveDateTasksToFirestore(selectedDateStr, updatedList);
+      showToast('내용이 실시간 수정되었습니다.');
+    }
+
+    function deleteTask(id) {
+      const currentList = tasksData[selectedDateStr] || [];
+      const updatedList = currentList.filter(task => task.id !== id);
+      saveDateTasksToFirestore(selectedDateStr, updatedList);
+      showToast('할 일이 삭제되었습니다.');
+    }
+
+    function clearCompletedTasks() {
+      const currentList = tasksData[selectedDateStr] || [];
+      const updatedList = currentList.filter(task => !task.completed);
+      saveDateTasksToFirestore(selectedDateStr, updatedList);
+      showToast('완료된 항목이 정리되었습니다.');
+    }
+
+    // Attach DOM Event Listeners
+    function setupEventListeners() {
+      document.getElementById('prevMonthBtn').onclick = () => {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+        renderCalendar();
+      };
+
+      document.getElementById('nextMonthBtn').onclick = () => {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        renderCalendar();
+      };
+
+      document.getElementById('todayBtn').onclick = () => {
+        const today = new Date();
+        currentDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        selectedDateStr = formatDateKey(today);
+        renderCalendar();
+        renderTaskList();
+      };
+
+      document.getElementById('addTaskForm').onsubmit = (e) => {
+        e.preventDefault();
+        const input = document.getElementById('newTaskInput');
+        const text = input.value.trim();
+        if (text) {
+          addTask(text);
+          input.value = '';
+        }
+      };
+
+      document.getElementById('clearCompletedBtn').onclick = clearCompletedTasks;
+    }
+
+    // Initialize Application
+    window.onload = function() {
+      setupEventListeners();
+      initAuthAndFirestore();
+      renderCalendar();
+      renderTaskList();
+      lucide.createIcons();
+    };
+  </script>
+</body>
+</html>
